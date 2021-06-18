@@ -75,12 +75,13 @@ if __name__ == "__main__":
             sprovs.add(prov)
 
     bases = set()
+    mingwpkg = re.compile(r"^mingw-w64-clang-")
     for p in r.values():
         deps = utils.split_depends(p.get('%DEPENDS%', list()))
         deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
         alldeps = True
         for d in deps:
-            if d.replace('-x86_64-', '-i686-') not in sprovs:
+            if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
                 alldeps = False
                 break
         if alldeps:
