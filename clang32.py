@@ -12,6 +12,8 @@ import tarfile
 from typing import Any, Dict, Tuple, List, Set, Iterable
 from urllib.request import urlopen
 
+import utils
+
 def parse_desc(t: str) -> Dict[str, List[str]]:
     d: Dict[str, List[str]] = {}
     cat = None
@@ -63,8 +65,26 @@ def parse_repo(url: str) -> Dict[str, Dict[str, List[str]]]:
 
 if __name__ == "__main__":
     r = parse_repo("https://repo.msys2.org/mingw/clang64/clang64.db")
+    s = parse_repo("https://repo.msys2.org/mingw/clang32/clang32.db")
     #json.dump(r, sys.stdout, sort_keys=True, indent=2)
-    bases = set((base for desc in r.values() for base in desc['%BASE%']))
+    #json.dump(s, sys.stdout, sort_keys=True, indent=2)
+    sprovs = set()
+    for p in s.values():
+      sprovs.add(p['%NAME%'][0])
+      for prov in utils.split_depends(p.get('%PROVIDES%', list())):
+        sprovs.add(prov)
+
+    bases = set()
+    for p in r.values():
+      deps = utils.split_depends(p.get('%DEPENDS%', list()))
+      deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
+      alldeps = True
+      for d in deps:
+        if d.replace('-x86_64-', '-i686-') not in sprovs:
+          alldeps = False
+          break
+      if alldeps:
+        bases.add(p['%BASE%'][0])
 
     linere = re.compile(r"^mingw_arch=(?!.*'clang32').*$")
     for base in bases:
