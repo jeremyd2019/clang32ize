@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import argparse
 import fileinput
 import io
 import json
@@ -64,28 +65,35 @@ def parse_repo(url: str) -> Dict[str, Dict[str, List[str]]]:
     return sources
 
 if __name__ == "__main__":
-    r = parse_repo("https://repo.msys2.org/mingw/clang64/clang64.db")
-    s = parse_repo("https://repo.msys2.org/mingw/clang32/clang32.db")
-    #json.dump(r, sys.stdout, sort_keys=True, indent=2)
-    #json.dump(s, sys.stdout, sort_keys=True, indent=2)
-    sprovs = set()
-    for p in s.values():
-        sprovs.add(p['%NAME%'][0])
-        for prov in utils.split_depends(p.get('%PROVIDES%', list())):
-            sprovs.add(prov)
+    parser = argparse.ArgumentParser(description='Mark PKGBUILDs for clang32')
+    parser.add_argument('--allclang64', action='store_true')
+    args = parser.parse_args()
 
-    bases = set()
-    mingwpkg = re.compile(r"^mingw-w64-clang-")
-    for p in r.values():
-        deps = utils.split_depends(p.get('%DEPENDS%', list()))
-        deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
-        alldeps = True
-        for d in deps:
-            if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
-                alldeps = False
-                break
-        if alldeps:
-            bases.add(p['%BASE%'][0])
+    r = parse_repo("https://repo.msys2.org/mingw/clang64/clang64.db")
+    #json.dump(r, sys.stdout, sort_keys=True, indent=2)
+    if not args.allclang64:
+        s = parse_repo("https://repo.msys2.org/mingw/clang32/clang32.db")
+        #json.dump(s, sys.stdout, sort_keys=True, indent=2)
+        sprovs = set()
+        for p in s.values():
+            sprovs.add(p['%NAME%'][0])
+            for prov in utils.split_depends(p.get('%PROVIDES%', list())):
+                sprovs.add(prov)
+
+        bases = set()
+        mingwpkg = re.compile(r"^mingw-w64-clang-")
+        for p in r.values():
+            deps = utils.split_depends(p.get('%DEPENDS%', list()))
+            deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
+            alldeps = True
+            for d in deps:
+                if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
+                    alldeps = False
+                    break
+            if alldeps:
+                bases.add(p['%BASE%'][0])
+    else:
+        bases = set((base for desc in r.values() for base in desc['%BASE%']))
 
     linere = re.compile(r"^mingw_arch=(?!.*'clang32').*$")
     for base in bases:
