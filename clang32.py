@@ -95,12 +95,15 @@ if __name__ == "__main__":
     else:
         bases = set((base for desc in r.values() for base in desc['%BASE%']))
 
-    linere = re.compile(r"^mingw_arch=(?!.*'clang32').*$")
+    linere = re.compile(r"^mingw_arch=.*'mingw32'(?!.*'clang32').*$")
     for base in bases:
         if not os.path.exists(os.path.join(base, "PKGBUILD")):
             with urlopen("https://packages.msys2.org/api/search?query=%s&qtype=pkg" % base) as f:
                 x = json.load(f)
             base = x["results"]["exact"]["source_url"].rsplit("/", 1)[1]
+        if not os.path.exists(os.path.join(base, "PKGBUILD")):
+            print('%s PKGBUILD not found!' % (base,), file=sys.stderr)
+            continue
         with fileinput.input(os.path.join(base, "PKGBUILD"), inplace=True) as f:
             for line in f:
                 if linere.match(line):
