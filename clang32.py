@@ -67,6 +67,7 @@ def parse_repo(url: str) -> Dict[str, Dict[str, List[str]]]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Mark PKGBUILDs for clang32')
     parser.add_argument('--allclang64', action='store_true')
+    parser.add_argument('--depth', type=int, default=1)
     args = parser.parse_args()
 
     r = parse_repo("https://repo.msys2.org/mingw/clang64/clang64.db")
@@ -82,16 +83,22 @@ if __name__ == "__main__":
 
         bases = set()
         mingwpkg = re.compile(r"^mingw-w64-clang-")
-        for p in r.values():
-            deps = utils.split_depends(p.get('%DEPENDS%', list()))
-            deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
-            alldeps = True
-            for d in deps:
-                if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
-                    alldeps = False
-                    break
-            if alldeps:
-                bases.add(p['%BASE%'][0])
+        for _ in range(args.depth):
+            newprovs = set()
+            for p in r.values():
+                deps = utils.split_depends(p.get('%DEPENDS%', list()))
+                deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
+                alldeps = True
+                for d in deps:
+                    if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
+                        alldeps = False
+                        break
+                if alldeps:
+                    bases.add(p['%BASE%'][0])
+                    newprovs.add(p['%NAME%'][0].replace('-x86_64-', '-i686-'))
+                    for prov in utils.split_depends(p.get('%PROVIDES%', list())):
+                        newprovs.add(prov.replace('-x86_64-', '-i686-'))
+            sprovs.update(newprovs)
     else:
         bases = set((base for desc in r.values() for base in desc['%BASE%']))
 
