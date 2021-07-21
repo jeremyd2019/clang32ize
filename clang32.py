@@ -15,6 +15,21 @@ from urllib.request import urlopen
 
 import utils
 
+PKGBASE_BLACKLIST = frozenset((
+    "mingw-w64-rust",
+    "mingw-w64-perl",
+    # failed already-enabled clang32 (TODO: get these dynamically somehow?)
+    "mingw-w64-openlibm",
+    "mingw-w64-quantlib",
+    "mingw-w64-zig",
+    "mingw-w64-libgoom2",
+    "mingw-w64-wslay",
+    "mingw-w64-fox",
+    "mingw-w64-kirigami2-qt5",
+    "mingw-w64-libgusb",
+    "mingw-w64-munt",
+))
+
 def parse_desc(t: str) -> Dict[str, List[str]]:
     d: Dict[str, List[str]] = {}
     cat = None
@@ -93,14 +108,14 @@ if __name__ == "__main__":
                     if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
                         alldeps = False
                         break
-                if alldeps:
+                if alldeps and p['%BASE%'][0] not in PKGBASE_BLACKLIST:
                     bases.add(p['%BASE%'][0])
                     newprovs.add(p['%NAME%'][0].replace('-x86_64-', '-i686-'))
                     for prov in utils.split_depends(p.get('%PROVIDES%', list())):
                         newprovs.add(prov.replace('-x86_64-', '-i686-'))
             sprovs.update(newprovs)
     else:
-        bases = set((base for desc in r.values() for base in desc['%BASE%']))
+        bases = set((base for desc in r.values() for base in desc['%BASE%'] if base not in PKGBASE_BLACKLIST))
 
     linere = re.compile(r"^mingw_arch=.*'mingw32'(?!.*'clang32').*$")
     for base in bases:
