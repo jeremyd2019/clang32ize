@@ -5,6 +5,7 @@ from __future__ import print_function
 import argparse
 import fileinput
 import io
+import itertools
 import json
 import os
 import re
@@ -15,20 +16,15 @@ from urllib.request import urlopen
 
 import utils
 
-PKGBASE_BLACKLIST = frozenset((
+with urlopen("https://github.com/msys2/msys2-autobuild/releases/download/status/status.json") as f:
+    x = json.load(f)
+
+PKGBASE_BLACKLIST = frozenset(itertools.chain((
     "mingw-w64-rust",
     "mingw-w64-perl",
-    # failed already-enabled clang32 (TODO: get these dynamically somehow?)
-    "mingw-w64-openlibm",
-    "mingw-w64-quantlib",
-    "mingw-w64-zig",
-    "mingw-w64-libgoom2",
-    "mingw-w64-wslay",
-    "mingw-w64-fox",
-    "mingw-w64-kirigami2-qt5",
-    "mingw-w64-libgusb",
-    "mingw-w64-munt",
-))
+), (pkg for pkg in x if "clang32" in x[pkg] and x[pkg]["clang32"]["status"] == "failed-to-build")))
+
+del x
 
 def parse_desc(t: str) -> Dict[str, List[str]]:
     d: Dict[str, List[str]] = {}
