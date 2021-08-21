@@ -21,7 +21,6 @@ with urlopen("https://github.com/msys2/msys2-autobuild/releases/download/status/
 
 PKGBASE_BLACKLIST = frozenset(itertools.chain((
     "mingw-w64-rust",
-    "mingw-w64-perl",
 ), (pkg for pkg in x if "clang32" in x[pkg] and x[pkg]["clang32"]["status"] == "failed-to-build")))
 
 del x
