@@ -14,7 +14,7 @@ import tarfile
 from typing import Any, Dict, Tuple, List, Set, Iterable
 from urllib.request import urlopen
 
-import utils
+from pacdb import pacdb
 
 with urlopen("https://github.com/msys2/msys2-autobuild/releases/download/status/status.json") as f:
     x = json.load(f)
@@ -25,92 +25,44 @@ PKGBASE_BLACKLIST = frozenset(itertools.chain((
 
 del x
 
-def parse_desc(t: str) -> Dict[str, List[str]]:
-    d: Dict[str, List[str]] = {}
-    cat = None
-    values: List[str] = []
-    for l in t.splitlines():
-        l = l.strip()
-        if cat is None:
-            cat = l
-        elif not l:
-            d[cat] = values
-            cat = None
-            values = []
-        else:
-            values.append(l)
-    if cat is not None:
-        d[cat] = values
-    return d
-
-
-def parse_repo(url: str) -> Dict[str, Dict[str, List[str]]]:
-    sources: Dict[str, Dict[str, List[str]]] = {}
-    print("Loading %r" % url, file=sys.stderr)
-
-    with urlopen(url) as u:
-        with io.BytesIO(u.read()) as f:
-            with tarfile.open(fileobj=f, mode="r:gz") as tar:
-                packages: Dict[str, list] = {}
-                for info in tar.getmembers():
-                    package_name = info.name.split("/", 1)[0]
-                    infofile = tar.extractfile(info)
-                    if infofile is None:
-                        continue
-                    with infofile:
-                        packages.setdefault(package_name, []).append(
-                            (info.name, infofile.read()))
-
-    for package_name, infos in sorted(packages.items()):
-        t = ""
-        for name, data in sorted(infos):
-            if name.endswith("/desc"):
-                t += data.decode("utf-8")
-            elif name.endswith("/depends"):
-                t += data.decode("utf-8")
-            elif name.endswith("/files"):
-                t += data.decode("utf-8")
-        desc = parse_desc(t)
-        sources[package_name] = desc
-    return sources
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Mark PKGBUILDs for clang32')
     parser.add_argument('--allclang64', action='store_true')
     parser.add_argument('--depth', type=int, default=1)
     args = parser.parse_args()
 
-    r = parse_repo("https://repo.msys2.org/mingw/clang64/clang64.db")
+    r = pacdb.mingw_db_by_name('clang64')
     #json.dump(r, sys.stdout, sort_keys=True, indent=2)
     if not args.allclang64:
-        s = parse_repo("https://repo.msys2.org/mingw/clang32/clang32.db")
+        s = pacdb.mingw_db_by_name('clang32')
         #json.dump(s, sys.stdout, sort_keys=True, indent=2)
         sprovs = set()
-        for p in s.values():
-            sprovs.add(p['%NAME%'][0])
-            for prov in utils.split_depends(p.get('%PROVIDES%', list())):
+        for p in s:
+            sprovs.add(p.name)
+            for prov in p.provides:
                 sprovs.add(prov)
 
         bases = set()
         mingwpkg = re.compile(r"^mingw-w64-clang-")
         for _ in range(args.depth):
             newprovs = set()
-            for p in r.values():
-                deps = utils.split_depends(p.get('%DEPENDS%', list()))
-                deps.update(utils.split_depends(p.get('%MAKEDEPENDS%', list())))
+            for p in r:
+                deps = p.depends
+                deps.update(p.makedepends)
                 alldeps = True
                 for d in deps:
                     if mingwpkg.match(d) and d.replace('-x86_64-', '-i686-') not in sprovs:
                         alldeps = False
                         break
-                if alldeps and p['%BASE%'][0] not in PKGBASE_BLACKLIST:
-                    bases.add(p['%BASE%'][0])
-                    newprovs.add(p['%NAME%'][0].replace('-x86_64-', '-i686-'))
-                    for prov in utils.split_depends(p.get('%PROVIDES%', list())):
+                if alldeps and p.base not in PKGBASE_BLACKLIST and \
+                        p.name.replace('-x86_64-', '-i686-') not in sprovs:
+                    bases.add(p.base)
+                    newprovs.add(p.name.replace('-x86_64-', '-i686-'))
+                    for prov in p.provides:
                         newprovs.add(prov.replace('-x86_64-', '-i686-'))
             sprovs.update(newprovs)
     else:
-        bases = set((base for desc in r.values() for base in desc['%BASE%'] if base not in PKGBASE_BLACKLIST))
+        bases = set(p.base for p in r if p.base not in PKGBASE_BLACKLIST)
 
     linere = re.compile(r"^mingw_arch=.*'mingw32'(?!.*'clang32').*$")
     for base in bases:
