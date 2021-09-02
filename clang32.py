@@ -55,7 +55,7 @@ if __name__ == "__main__":
                         alldeps = False
                         break
                 if alldeps and p.base not in PKGBASE_BLACKLIST and \
-                        p.name.replace('-x86_64-', '-i686-') not in sprovs:
+                        p.name.replace('-x86_64-', '-i686-') not in s.byname:
                     bases.add(p.base)
                     newprovs.add(p.name.replace('-x86_64-', '-i686-'))
                     for prov in p.provides:
