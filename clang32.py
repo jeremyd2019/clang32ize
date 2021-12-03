@@ -4,17 +4,15 @@ from __future__ import print_function
 
 import argparse
 import fileinput
-import io
 import itertools
 import json
 import os
 import re
 import sys
-import tarfile
-from typing import Any, Dict, Tuple, List, Set, Iterable
 from urllib.request import urlopen
 
 from pacdb import pacdb
+import pkgbuild
 
 with urlopen("https://github.com/msys2/msys2-autobuild/releases/download/status/status.json") as f:
     x = json.load(f)
@@ -90,18 +88,4 @@ if __name__ == "__main__":
     else:
         bases = set(p.base for p in r if p.base not in PKGBASE_BLACKLIST)
 
-    linere = re.compile(r"^mingw_arch=.*'mingw32'(?!.*'clang32').*$")
-    for base in bases:
-        if not os.path.exists(os.path.join(base, "PKGBUILD")):
-            with urlopen("https://packages.msys2.org/api/search?query=%s&qtype=pkg" % base) as f:
-                x = json.load(f)
-            base = x["results"]["exact"]["source_url"].rsplit("/", 1)[1]
-        if not os.path.exists(os.path.join(base, "PKGBUILD")):
-            print('%s PKGBUILD not found!' % (base,), file=sys.stderr)
-            continue
-        with fileinput.input(os.path.join(base, "PKGBUILD"), inplace=True) as f:
-            for line in f:
-                if linere.match(line):
-                    print(re.sub(r"'clang64'", "'clang64' 'clang32'", line), end="")
-                else:
-                    print(line, end="")
+    pkgbuild.enable_arch(bases, "clang32", "mingw32")
