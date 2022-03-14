@@ -3,7 +3,8 @@
 import sys
 from collections import namedtuple
 
-from pacdb import pacdb
+import pacdb
+
 import pkgbuild
 
 _Repo = namedtuple('_Repo', ("db", "pkg_prefix"))

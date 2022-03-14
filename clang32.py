@@ -11,7 +11,8 @@ import re
 import sys
 from urllib.request import urlopen
 
-from pacdb import pacdb
+import pacdb
+
 import pkgbuild
 
 with urlopen("https://github.com/msys2/msys2-autobuild/releases/download/status/status.json") as f:
