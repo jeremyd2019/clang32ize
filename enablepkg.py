@@ -31,7 +31,7 @@ def do_pkg(pkgname, done=None):
         for dep in deps:
             dep = clang64_provides.get(dep, dep)
             xfrmed_dep = xfrm_name(dep)
-            if xfrmed_dep not in clangarm64.db:
+            if xfrmed_dep not in clangarm64.db and dep in clang64.db:
                 if clang64.db.get_pkg(dep).base in done:
                     print("WARNING: circular dep found!", xfrmed_dep, file=sys.stderr)
                 else:
