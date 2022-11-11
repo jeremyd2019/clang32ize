@@ -3,10 +3,8 @@
 from __future__ import print_function
 
 import argparse
-import fileinput
 import itertools
 import json
-import os
 import re
 import sys
 from urllib.request import urlopen
@@ -39,6 +37,7 @@ if __name__ == "__main__":
     parser.add_argument('--allclang64', action='store_true')
     parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
 
     r = pacdb.mingw_db_by_name('clang64')
@@ -89,4 +88,5 @@ if __name__ == "__main__":
     else:
         bases = set(p.base for p in r if p.base not in PKGBASE_BLACKLIST)
 
-    pkgbuild.enable_arch(bases, "clang32", "mingw32")
+    if not args.dry_run:
+        pkgbuild.enable_arch(bases, "clang32", "mingw32")
